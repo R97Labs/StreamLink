@@ -1,0 +1,86 @@
+:root { 
+  --bg: #1c1c1e; 
+  --card: #2c2c2e; 
+  --accent: #0a84ff; 
+  --text: #ffffff; 
+  --text-muted: #8e8e93; 
+}
+
+/* Global Reset */
+body { 
+  background: var(--bg); 
+  color: var(--text); 
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+  margin: 0; 
+}
+
+/* Popup Specific (200px width) */
+.popup-body { width: 200px; padding: 16px; }
+
+/* Helper/Player Centering */
+.full-screen-center {
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  height: 100vh; 
+  text-align: center;
+  background: #121212; /* Matches the dark aesthetic */
+}
+
+/* Typography */
+.label { 
+  font-size: 10px; 
+  color: var(--text-muted); 
+  text-transform: uppercase; 
+  font-weight: 700; 
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+/* Interactive Elements */
+.radio-group label { 
+  display: flex; 
+  align-items: center; 
+  padding: 10px; 
+  margin-bottom: 6px; 
+  background: var(--card); 
+  border-radius: 8px; 
+  cursor: pointer; 
+  transition: background 0.2s ease;
+}
+
+.radio-group label:hover { background: #3a3a3c; }
+
+input[type="radio"] { margin-right: 10px; accent-color: var(--accent); }
+
+.btn-primary {
+  margin-top: 20px; 
+  padding: 10px 20px; 
+  background: var(--accent); 
+  color: white; 
+  border: none; 
+  border-radius: 8px; 
+  cursor: pointer;
+  font-weight: 600;
+  display: none; /* Hidden by default in helper.html */
+}
+
+/* Footer & Dividers */
+.footer { 
+  margin-top: 12px; 
+  padding-top: 12px; 
+  border-top: 1px solid #3a3a3c; 
+  display: flex; 
+  justify-content: space-between; 
+}
+
+#status {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.footer a { text-decoration: none; font-size: 11px; color: var(--accent); }
+
+/* Video Player */
+video { width: 100vw; max-height: 100vh; background: black; }

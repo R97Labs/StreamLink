@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      .loader {
+        border: 4px solid #2c2c2e;
+        border-top: 4px solid #0a84ff;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body style="background: #121212; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center;">
+    <div>
+      <div id="loader" class="loader"></div>
+      <div id="status">Launching Player...</div>
+      <button id="manual-trigger" style="margin-top: 20px; padding: 12px 24px; background: #0a84ff; color: white; border: none; border-radius: 8px; cursor: pointer; display: none; font-weight: 600;">
+        Open Player Manually
+      </button>
+    </div>
+    <script src="helper.js"></script>
+  </body>
+</html>
