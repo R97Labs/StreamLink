@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>StreamLink Player</title>
+    <style>
+        body { margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; }
+        video { width:100vw; max-height:100vh; z-index: 1; }
+        
+        .loader {
+            position: absolute;
+            border: 4px solid #2c2c2e;
+            border-top: 4px solid #0a84ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            z-index: 2;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="loader" class="loader"></div>
+    <video id="videoPlayer" controls autoplay></video>
+    <script src="player.js"></script>
+</body>
+</html>
