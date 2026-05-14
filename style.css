@@ -84,3 +84,30 @@ input[type="radio"] { margin-right: 10px; accent-color: var(--accent); }
 
 /* Video Player */
 video { width: 100vw; max-height: 100vh; background: black; }
+
+/* Add to your style.css */
+.account-section {
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--card);
+  border-radius: 8px;
+}
+
+.dashboard-link {
+  display: block;
+  text-decoration: none;
+  background: var(--accent);
+  color: white;
+  text-align: center;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.status-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
