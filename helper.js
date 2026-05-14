@@ -17,7 +17,7 @@ if (url) {
     const status = document.getElementById('status');
     const btn = document.getElementById('manual-trigger');
     if (status && btn) {
-      status.innerText = "If the player didn't open, click below:";
+      status.innerText = "Make sure you installed IINA player. \nIf the player didn't open, click below:";
       btn.style.display = "inline-block";
     }
   }, 1000);
