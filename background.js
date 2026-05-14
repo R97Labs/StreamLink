@@ -36,17 +36,23 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       return;
     }
 
-    // 4. Launch Player on Success
-    if (streamData.url) {
-      const streamUrl = streamData.url;
-      if (defaultPlayer === "browser") {
-        const playerUrl = chrome.runtime.getURL(`player.html?url=${encodeURIComponent(streamUrl)}`);
-        chrome.tabs.create({ url: playerUrl });
-      } else {
-        const helperUrl = chrome.runtime.getURL(`helper.html?url=${encodeURIComponent(streamUrl)}&player=${defaultPlayer}`);
-        chrome.tabs.create({ url: helperUrl });
-      }
-    }
+    // background.js
+
+// 4. Launch Player on Success
+if (streamData.url) {
+  const streamUrl = streamData.url;
+  
+  if (defaultPlayer === "browser") {
+    // 🚀 THE BRIDGE: Directs the link to your new full-screen route
+    const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
+    
+    chrome.tabs.create({ url: websiteUrl });
+  } else {
+    // Keeps support for external players like IINA or VLC
+    const helperUrl = chrome.runtime.getURL(`helper.html?url=${encodeURIComponent(streamUrl)}&player=${defaultPlayer}`);
+    chrome.tabs.create({ url: helperUrl });
+  }
+}
 
   } catch (e) {
     showToast(tab.id, "⚠️ Extension Error.");
