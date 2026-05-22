@@ -1,5 +1,13 @@
 const PROXY_URL = "https://api.streamlink.cloud"; // 🚀 Update this
+
 chrome.runtime.onInstalled.addListener(() => {
+  // Set default player to extension on install if not already set
+  chrome.storage.local.get(["defaultPlayer"], (data) => {
+    if (!data.defaultPlayer) {
+      chrome.storage.local.set({ defaultPlayer: "extension" });
+    }
+  });
+
   chrome.contextMenus.create({
     id: "stream",
     title: "Play with Streamlink",
@@ -14,7 +22,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   try {
     const settings = await chrome.storage.local.get(["defaultPlayer"]);
-    const defaultPlayer = settings.defaultPlayer || "iina";
+    const defaultPlayer = settings.defaultPlayer || "extension";
 
     // 1. Fetch data from Worker (Includes Auth, Size check, and Message strings)
     const streamData = await getWorkerStream(info.linkUrl);
@@ -36,23 +44,47 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       return;
     }
 
-    // background.js
+    /// 4. Launch Player on Success
+    if (streamData.url) {
+      const streamUrl = streamData.url;
+      
+      if (defaultPlayer === "browser") {
+        // 🌐 StreamLink Website: Opens in a NEW tab
+        const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
+        chrome.tabs.create({ url: websiteUrl });
+        
+      } else if (defaultPlayer === "extension") {
+        // 🚀 Extension Player: Injects safely into the SAME tab
+        try {
+          // Double check that the tab context is still alive to prevent "No tab with id" crashes
+          const targetTab = await chrome.tabs.get(tab.id);
+          if (!targetTab) throw new Error("Tab no longer exists");
 
-// 4. Launch Player on Success
-if (streamData.url) {
-  const streamUrl = streamData.url;
-  
-  if (defaultPlayer === "browser") {
-    // 🚀 THE BRIDGE: Directs the link to your new full-screen route
-    const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
-    
-    chrome.tabs.create({ url: websiteUrl });
-  } else {
-    // Keeps support for external players like IINA or VLC
-    const helperUrl = chrome.runtime.getURL(`helper.html?url=${encodeURIComponent(streamUrl)}&player=${defaultPlayer}`);
-    chrome.tabs.create({ url: helperUrl });
-  }
-}
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ["injectPlayer.js"]
+          });
+
+          // Allow a brief window for execution environment mapping before sending URL
+          setTimeout(() => {
+            chrome.tabs.sendMessage(tab.id, { action: "loadStream", url: streamUrl })
+              .catch(err => console.log("Message intercepted or tab closed: ", err));
+          }, 100);
+
+        } catch (err) {
+          console.error("Context mapping restriction or Tab missing: ", err);
+          // Bulletproof Fallback: Open in web player if script environment injection is blocked
+          showToast(tab.id, "⚠️ In-page block. Opening in Web Player instead.");
+          const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
+          chrome.tabs.create({ url: websiteUrl });
+        }
+        
+      } else {
+        // External native players (e.g., IINA)
+        const helperUrl = chrome.runtime.getURL(`helper.html?url=${encodeURIComponent(streamUrl)}&player=${defaultPlayer}`);
+        chrome.tabs.create({ url: helperUrl });
+      }
+    }
 
   } catch (e) {
     showToast(tab.id, "⚠️ Extension Error.");
@@ -74,7 +106,6 @@ async function getWorkerStream(url) {
       }
     });
 
-    // Worker returns JSON even for 403 (Limit) or 500 (Error)
     return await response.json();
   } catch (error) {
     console.error("Fetch failed:", error);
@@ -82,7 +113,6 @@ async function getWorkerStream(url) {
   }
 }
 
-// Badge and Toast helpers remain the same...
 function triggerBadgeError() {
   chrome.action.setBadgeText({ text: "!" });
   chrome.action.setBadgeBackgroundColor({ color: "#FF3B30" });
