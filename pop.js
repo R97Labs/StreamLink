@@ -1,9 +1,8 @@
-
 /**
  * Load saved player preference from storage
  */
 chrome.storage.local.get(["defaultPlayer"], (data) => {
-  const player = data.defaultPlayer || "iina";
+  const player = data.defaultPlayer || "extension"; // Fallback to iina if nothing is chosen yet
   const radio = document.querySelector(`input[value="${player}"]`);
   if (radio) {
     radio.checked = true;
@@ -18,7 +17,6 @@ document.querySelectorAll('input[name="player"]').forEach(input => {
     chrome.storage.local.set({ defaultPlayer: input.value });
   });
 });
-// Existing player logic...
 
 // Update User Status Display
 chrome.storage.local.get(["user_email"], (data) => {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "StreamLink",
-  "version": "1.2",
+  "name": "StreamLink - Stream torrents online",
+  "version": "1.5", 
   "permissions": [
     "contextMenus",
     "tabs",
@@ -9,22 +9,28 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://*/*",
-    "https://streamlinkcloud.pages.dev/*",
-    "https://StreamLinkcloud.r97group.workers.dev/*"
+    "<all_urls>",   
+    "https://api.streamlink.cloud/*",
+    "https://streamlink.cloud/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://streamlinkcloud.pages.dev/*"],
+      "matches": ["https://streamlink.cloud/*"],  
       "js": ["content.js"]
     }
   ],
   "action": {
     "default_popup": "popup.html"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["player.html", "injectPlayer.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",

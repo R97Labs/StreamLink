@@ -1,29 +1,177 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>StreamLink Player</title>
-    <style>
-        body { margin:0; background:black; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; }
-        video { width:100vw; max-height:100vh; z-index: 1; }
-        
-        .loader {
-            position: absolute;
-            border: 4px solid #2c2c2e;
-            border-top: 4px solid #0a84ff;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            z-index: 2;
-        }
+  <meta charset="UTF-8">
+  <title>StreamLink Theater Mode</title>
+  <style>
+    body, html {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: #000000; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-user-select: none; user-select: none;
+    }
+    .theater-container {
+      position: relative; width: 100vw; height: 100vh;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .theater-container:focus { outline: none; }
+    
+    .video-wrapper { width: 100%; height: 100%; cursor: pointer; }
+    video { width: 100%; height: 100%; object-fit: contain; background: #000000; }
+    
+    .player-overlay {
+      position: absolute; left: 0; width: 100%; box-sizing: border-box;
+      z-index: 10; transition: opacity 0.3s ease, visibility 0.3s ease; opacity: 1; visibility: visible;
+      pointer-events: none; /* Allows clicks to pass through to the video */
+    }
+    
+    .top-header {
+      top: 0; padding: 30px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+      color: white; font-size: 18px; font-weight: 600;
+      display: flex; justify-content: space-between; align-items: center;
+      pointer-events: auto;
+    }
+    
+    /* 🚀 UPDATED: Center Controls Overlay */
+    .center-controls {
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      display: flex; align-items: center; justify-content: center; gap: 60px;
+      width: auto; pointer-events: none;
+    }
+    
+    /* 👇 PASTE THIS MISSING BLOCK BACK IN 👇 */
+    .center-btn {
+      background: transparent; border: none; color: white; 
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s ease; pointer-events: auto; 
+      outline: none; 
+    }
+    /* 👆 -------------------------------- 👆 */
 
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .hidden { display: none !important; }
-    </style>
+    .center-btn:hover { 
+      /* Added the white glow and zoom! */
+      transform: scale(1.15); 
+      filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.7));
+    }
+    .center-btn svg { width: 36px; height: 36px; fill: currentColor; }
+    .center-btn svg { width: 36px; height: 36px; fill: currentColor; }
+    
+    .main-play { padding: 10px; }
+    .main-play svg { width: 64px; height: 64px; } /* Made Play slightly larger to stand out */
+    .side-skip { padding: 10px; }
+
+    .bottom-controls {
+      bottom: 0; padding: 30px 40px;
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+      pointer-events: auto;
+    }
+    
+    /* Timeline */
+    .timeline-container { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+    .timeline-rail {
+      flex-grow: 1; height: 6px; background: rgba(255,255,255,0.2);
+      border-radius: 3px; cursor: pointer; position: relative; transition: transform 0.1s ease;
+    }
+    .timeline-rail:hover { transform: scaleY(1.3); }
+    .timeline-buffer { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: rgba(255, 255, 255, 0.35); border-radius: 3px; pointer-events: none; }
+    .timeline-fill { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background: #0a84ff; border-radius: 3px; pointer-events: none; }
+    .time-display { color: rgba(255,255,255,0.8); font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 500; min-width: 45px; text-align: center; }
+
+    /* Bottom Left/Right Layout */
+    .controls-row { display: flex; justify-content: space-between; align-items: center; }
+    .controls-left, .controls-right { display: flex; align-items: center; gap: 18px; }
+    
+    .btn-action { background: transparent; border: none; color: white; cursor: pointer; transition: transform 0.1s ease; padding: 6px; }
+    .btn-action:hover { transform: scale(1.12); }
+    .btn-action svg { fill: currentColor; width: 22px; height: 22px; transition: color 0.1s ease; }
+    .btn-action:hover svg { color: #0a84ff; }
+    
+    /* Volume Slider with Dynamic Track */
+    .volume-container { display: flex; align-items: center; gap: 10px; }
+    .volume-slider {
+      width: 0; height: 4px; -webkit-appearance: none; appearance: none;
+      background: rgba(255,255,255,0.3); border-radius: 2px; outline: none;
+      transition: width 0.2s ease, opacity 0.2s ease; opacity: 0; cursor: pointer;
+    }
+    .volume-container:hover .volume-slider, .volume-slider:focus { width: 80px; opacity: 1; }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+      border-radius: 50%; background: #ffffff; transition: background 0.1s;
+    }
+    .volume-slider::-webkit-slider-thumb:hover { background: #0a84ff; }
+
+    /* 🚀 NEW: Glowing X Close Button */
+    .exit-theater-btn { 
+      background: transparent; border: none; color: rgba(255,255,255,0.7); 
+      padding: 8px; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; 
+    }
+    .exit-theater-btn svg { width: 28px; height: 28px; fill: currentColor; }
+    .exit-theater-btn:hover { 
+      color: #ff3b30; background: rgba(255, 59, 48, 0.1); 
+      transform: scale(1.1); filter: drop-shadow(0 0 8px rgba(255, 59, 48, 0.6)); 
+    }
+    
+    .hide-ui { opacity: 0 !important; visibility: hidden !important; cursor: none !important; }
+  </style>
 </head>
 <body>
-    <div id="loader" class="loader"></div>
-    <video id="videoPlayer" controls autoplay></video>
-    <script src="player.js"></script>
+
+  <div class="theater-container" id="container" tabindex="0">
+    <div class="player-overlay top-header" id="header">
+      <span>🍿 Now Streaming via StreamLink</span>
+      <button id="exit-btn" class="exit-theater-btn" title="Close Player">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+
+    <div class="video-wrapper" id="video-wrapper">
+      <video id="video-element" autoplay playsinline></video>
+    </div>
+
+    <div class="player-overlay center-controls" id="center-ui">
+      <button class="center-btn side-skip" id="rewind-btn" title="Rewind 10s (←)">
+        <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      </button>
+      
+      <button class="center-btn main-play" id="play-btn" title="Play/Pause (Space)">
+        <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      
+      <button class="center-btn side-skip" id="forward-btn" title="Forward 10s (→)">
+        <svg viewBox="0 0 24 24" style="transform: scaleX(-1);"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+      </button>
+    </div>
+
+    <div class="player-overlay bottom-controls" id="controls">
+      <div class="timeline-container">
+        <span class="time-display" id="current-time">0:00</span>
+        <div class="timeline-rail" id="timeline">
+          <div class="timeline-buffer" id="buffer-progress"></div>
+          <div class="timeline-fill" id="progress"></div>
+        </div>
+        <span class="time-display" id="total-time">-:-</span>
+      </div>
+
+      <div class="controls-row">
+        <div class="controls-left">
+          <div class="volume-container">
+            <button class="btn-action" id="volume-btn" title="Mute/Unmute (M)">
+              <svg id="volume-icon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+            </button>
+            <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.05" value="1">
+          </div>
+        </div>
+
+        <div class="controls-right">
+          <button class="btn-action" id="fs-btn" title="Fullscreen (F)">
+            <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="player.js"></script>
 </body>
 </html>
