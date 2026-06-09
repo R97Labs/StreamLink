@@ -55,6 +55,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         const streamUrl = streamData.url;
         
         if (defaultPlayer === "browser") {
+          // Pointing to your React app's /streaming route
           const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
           chrome.tabs.create({ url: websiteUrl });
           
@@ -137,7 +138,8 @@ async function getWorkerStream(url) {
   try {
     const { auth_token } = await chrome.storage.local.get("auth_token");
 
-    const response = await fetch(`${PROXY_URL}/api/?url=${encodeURIComponent(url)}`, {
+    // 🚀 FIXED: Added &action=play-direct to explicitly tell the router to stream!
+    const response = await fetch(`${PROXY_URL}/api/?url=${encodeURIComponent(url)}&action=play-direct`, {
       headers: {
         "Authorization": auth_token ? `Bearer ${auth_token}` : ""
       }
