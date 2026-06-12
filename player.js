@@ -6,6 +6,7 @@ const video = document.getElementById("video-element");
 const videoWrapper = document.getElementById("video-wrapper");
 const header = document.getElementById("header");
 const controls = document.getElementById("controls");
+const centerUi = document.getElementById("center-ui");
 const container = document.getElementById("container");
 
 // Elements changing icons dynamically
@@ -43,20 +44,38 @@ if (streamUrl) {
   video.src = streamUrl;
   container.focus();
 
+  // 🚀 NEW: Force Autoplay Bypass
+  // Tells Chrome "I know what I'm doing, play the video immediately!"
+  video.play().catch((err) => {
+    console.warn("StreamLink: Browser blocked audio-autoplay. User must click play.", err);
+  });
+
   const formatTime = (timeInSeconds) => {
     if (isNaN(timeInSeconds)) return "0:00";
-    const mins = Math.floor(timeInSeconds / 60);
-    const secs = Math.floor(timeInSeconds % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+    const h = Math.floor(timeInSeconds / 3600);
+    const m = Math.floor((timeInSeconds % 3600) / 60);
+    const s = Math.floor(timeInSeconds % 60);
+    
+    if (h > 0) {
+      return `${h}:${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
+    }
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
+
+  // 🚀 FOOLPROOF PLAY/PAUSE SYNC
+  video.addEventListener('play', () => {
+    playIcon.innerHTML = SVG_PATHS.pause;
+  });
+
+  video.addEventListener('pause', () => {
+    playIcon.innerHTML = SVG_PATHS.play;
+  });
 
   const togglePlay = () => {
     if (video.paused) {
       video.play();
-      playIcon.innerHTML = SVG_PATHS.pause;
     } else {
       video.pause();
-      playIcon.innerHTML = SVG_PATHS.play;
     }
     resetControlsTimeout();
   };
@@ -70,6 +89,9 @@ if (streamUrl) {
     video.volume = newVolume;
     volumeSlider.value = newVolume;
     
+    const fillPercentage = newVolume * 100;
+    volumeSlider.style.background = `linear-gradient(to right, #0a84ff ${fillPercentage}%, rgba(255,255,255,0.3) ${fillPercentage}%)`;
+
     if (newVolume === 0) {
       volumeIcon.innerHTML = SVG_PATHS.mute;
     } else if (newVolume < 0.5) {
@@ -107,14 +129,25 @@ if (streamUrl) {
 
   // 🎯 Click on Main Screen to Play/Pause
   videoWrapper.onclick = (e) => {
-    // Prevent pausing when double clicking to trigger fullscreen native hooks
     if (e.detail === 1) {
       togglePlay();
     }
   };
   
-  // Double-click screen gesture shortcuts for Fullscreen
-  videoWrapper.ondblclick = toggleFullscreen;
+  // Smart Double-Click (Left = Rewind, Right = Forward, Middle = Fullscreen)
+  videoWrapper.ondblclick = (e) => {
+    const rect = videoWrapper.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const thirdOfScreen = rect.width / 3;
+
+    if (clickX < thirdOfScreen) {
+      skip(-10); // Left 33% of screen
+    } else if (clickX > rect.width - thirdOfScreen) {
+      skip(10);  // Right 33% of screen
+    } else {
+      toggleFullscreen(); // Middle of screen
+    }
+  };
 
   // Control Actions Wire-up
   playBtn.onclick = togglePlay;
@@ -209,17 +242,25 @@ if (streamUrl) {
   function resetControlsTimeout() {
     header.classList.remove("hide-ui");
     controls.classList.remove("hide-ui");
+    centerUi.classList.remove("hide-ui");
     container.style.cursor = "default";
+    
     clearTimeout(fadeTimeout);
+    
     if (!video.paused) {
       fadeTimeout = setTimeout(() => {
         header.classList.add("hide-ui");
         controls.classList.add("hide-ui");
+        centerUi.classList.add("hide-ui");
         container.style.cursor = "none";
       }, 3000);
     }
   }
+  
   container.onmousemove = resetControlsTimeout;
-  video.onplay = resetControlsTimeout;
+  // Let the player controls show while pausing
   video.onpause = resetControlsTimeout;
+  
+  // Initialize the visual state
+  handleVolumeChange(1);
 }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "StreamLink - Stream torrents online",
-  "version": "1.4", 
+  "version": "1.5.2", 
   "permissions": [
     "contextMenus",
     "tabs",

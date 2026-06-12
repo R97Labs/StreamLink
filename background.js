@@ -1,4 +1,4 @@
-const PROXY_URL = "https://api.streamlink.cloud"; // 🚀 Update this
+const PROXY_URL = "https://api.streamlink.cloud"; // 🚀 Points to your production API
 
 chrome.runtime.onInstalled.addListener(() => {
   // Set default player to extension on install if not already set
@@ -8,102 +8,145 @@ chrome.runtime.onInstalled.addListener(() => {
     }
   });
 
+  // Existing Play Button
   chrome.contextMenus.create({
     id: "stream",
     title: "Play with Streamlink",
     contexts: ["link"]
   });
+
+  // Auto-Save Button
+  chrome.contextMenus.create({
+    id: "save_drive",
+    title: "Save to StreamLink Drive",
+    contexts: ["link"]
+  });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== "stream" || !info.linkUrl) return;
+  if (!info.linkUrl) return;
 
-  showToast(tab.id, "Searching for stream...");
+  // ─── FLOW 1: INSTANT PLAY LOGIC ───
+  if (info.menuItemId === "stream") {
+    showToast(tab.id, "Searching for stream...");
 
-  try {
-    const settings = await chrome.storage.local.get(["defaultPlayer"]);
-    const defaultPlayer = settings.defaultPlayer || "extension";
+    try {
+      const settings = await chrome.storage.local.get(["defaultPlayer"]);
+      const defaultPlayer = settings.defaultPlayer || "extension";
 
-    // 1. Fetch data from Worker (Includes Auth, Size check, and Message strings)
-    const streamData = await getWorkerStream(info.linkUrl);
+      const streamData = await getWorkerStream(info.linkUrl);
 
-    if (!streamData) {
-      showToast(tab.id, "⚠️ Connection error.");
-      triggerBadgeError();
-      return;
-    }
+      if (!streamData) {
+        showToast(tab.id, "⚠️ Connection error.");
+        triggerBadgeError();
+        return;
+      }
 
-    // 2. Display the message sent from Cloudflare (Success, Retry, or Limit)
-    if (streamData.message) {
-      showToast(tab.id, streamData.message);
-    }
+      if (streamData.message) {
+        showToast(tab.id, streamData.message);
+      }
 
-    // 3. Stop if it's a block or a retry
-    if (streamData.error === "PREMIUM_REQUIRED" || streamData.status === "retry") {
-      if (streamData.error) triggerBadgeError();
-      return;
-    }
+      if (streamData.error === "PREMIUM_REQUIRED" || streamData.status === "retry") {
+        if (streamData.error) triggerBadgeError();
+        return;
+      }
 
-    /// 4. Launch Player on Success
-    if (streamData.url) {
-      const streamUrl = streamData.url;
-      
-      if (defaultPlayer === "browser") {
-        // 🌐 StreamLink Website: Opens in a NEW tab
-        const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
-        chrome.tabs.create({ url: websiteUrl });
+      if (streamData.url) {
+        const streamUrl = streamData.url;
         
-      } else if (defaultPlayer === "extension") {
-        // 🚀 Extension Player: Injects safely into the SAME tab
-        try {
-          // Double check that the tab context is still alive to prevent "No tab with id" crashes
-          const targetTab = await chrome.tabs.get(tab.id);
-          if (!targetTab) throw new Error("Tab no longer exists");
-
-          await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: ["injectPlayer.js"]
-          });
-
-          // Allow a brief window for execution environment mapping before sending URL
-          setTimeout(() => {
-            chrome.tabs.sendMessage(tab.id, { action: "loadStream", url: streamUrl })
-              .catch(err => console.log("Message intercepted or tab closed: ", err));
-          }, 100);
-
-        } catch (err) {
-          console.error("Context mapping restriction or Tab missing: ", err);
-          // Bulletproof Fallback: Open in web player if script environment injection is blocked
-          showToast(tab.id, "⚠️ In-page block. Opening in Web Player instead.");
+        if (defaultPlayer === "browser") {
           const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
           chrome.tabs.create({ url: websiteUrl });
-        }
-        
-      } else {
-        // External native players (e.g., IINA)
-        const helperUrl = chrome.runtime.getURL(`helper.html?url=${encodeURIComponent(streamUrl)}&player=${defaultPlayer}`);
-        chrome.tabs.create({ url: helperUrl });
-      }
-    }
+          
+        } else if (defaultPlayer === "extension") {
+          try {
+            const targetTab = await chrome.tabs.get(tab.id);
+            if (!targetTab) throw new Error("Tab no longer exists");
 
-  } catch (e) {
-    showToast(tab.id, "⚠️ Extension Error.");
-    triggerBadgeError();
-    console.error(e);
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ["injectPlayer.js"]
+            });
+
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tab.id, { action: "loadStream", url: streamUrl })
+                .catch(err => console.log("Message intercepted or tab closed: ", err));
+            }, 100);
+
+          } catch (err) {
+            console.error("Context mapping restriction or Tab missing: ", err);
+            showToast(tab.id, "⚠️ In-page block. Opening in Web Player instead.");
+            const websiteUrl = `https://streamlink.cloud/streaming?url=${encodeURIComponent(streamUrl)}`;
+            chrome.tabs.create({ url: websiteUrl });
+          }
+          
+        } else {
+          const helperUrl = chrome.runtime.getURL(`helper.html?url=${encodeURIComponent(streamUrl)}&player=${defaultPlayer}`);
+          chrome.tabs.create({ url: helperUrl });
+        }
+      }
+
+    } catch (e) {
+      showToast(tab.id, "⚠️ Extension Error.");
+      triggerBadgeError();
+      console.error(e);
+    }
+  }
+
+  // ─── FLOW 2: 🚀 HEADLESS AUTO-SAVE LOGIC (Upgraded to POST) ───
+  if (info.menuItemId === "save_drive") {
+    showToast(tab.id, "Saving to Drive...");
+
+    try {
+      const { auth_token } = await chrome.storage.local.get("auth_token");
+      
+      if (!auth_token) {
+        showToast(tab.id, "⚠️ Please login to the extension first.");
+        triggerBadgeError();
+        return;
+      }
+
+      // 🚀 THE FIX: Use POST and JSON body
+      const response = await fetch(`${PROXY_URL}/v1/extension/save`, {
+        method: "POST",
+        headers: { 
+          "Authorization": `Bearer ${auth_token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ url: info.linkUrl })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast(tab.id, `✅ ${data.message}`);
+      } else {
+        showToast(tab.id, data.message || data.error || "⚠️ Failed to save to Drive.");
+        triggerBadgeError();
+      }
+
+    } catch (e) {
+      showToast(tab.id, "⚠️ Network Error while saving.");
+      triggerBadgeError();
+      console.error(e);
+    }
   }
 });
 
 /**
- * Communicates with Cloudflare Worker
+ * 🚀 THE FIX: Communicates with Cloudflare via the new POST Stream Endpoint
  */
 async function getWorkerStream(url) {
   try {
     const { auth_token } = await chrome.storage.local.get("auth_token");
 
-    const response = await fetch(`${PROXY_URL}/?url=${encodeURIComponent(url)}`, {
+    const response = await fetch(`${PROXY_URL}/v1/extension/stream`, {
+      method: "POST",
       headers: {
-        "Authorization": auth_token ? `Bearer ${auth_token}` : ""
-      }
+        "Authorization": auth_token ? `Bearer ${auth_token}` : "",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url: url })
     });
 
     return await response.json();
@@ -113,6 +156,7 @@ async function getWorkerStream(url) {
   }
 }
 
+// ... UI functions remain exactly the same ...
 function triggerBadgeError() {
   chrome.action.setBadgeText({ text: "!" });
   chrome.action.setBadgeBackgroundColor({ color: "#FF3B30" });
